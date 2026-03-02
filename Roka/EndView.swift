@@ -1,3 +1,4 @@
+// EndView.swift
 import SwiftUI
 
 struct EndView: View {
@@ -23,40 +24,47 @@ struct EndView: View {
             Spacer()
 
             Text(levelTitle + " — Done!")
-                .font(RokaFont.boldScaled(.title2, base: 22))
+                .font(.custom("AmericanTypewriter-Bold", size: 26, relativeTo: .title2))
                 .foregroundColor(RokaColor.ink)
                 .padding(.bottom, 8)
 
             Text("\(score) / \(total)")
-                .font(RokaFont.boldScaled(.largeTitle, base: 60))
+                .font(.custom("AmericanTypewriter-Bold", size: 64, relativeTo: .largeTitle))
                 .foregroundColor(RokaColor.tan)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
                 .padding(.bottom, 16)
 
-            // Result dots — use both shape+fill for "differentiate without color"
-            let columns = Array(repeating: GridItem(.fixed(16), spacing: 8), count: 10)
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(Array(results.enumerated()), id: \.offset) { _, r in
-                    if r.correct {
-                        Circle()
-                            .fill(RokaColor.correct)
-                            .frame(width: 14, height: 14)
-                            .accessibilityLabel("Correct")
-                    } else {
-                        // Diamond shape for wrong — "differentiate without color"
-                        Rectangle()
-                            .fill(RokaColor.wrong)
-                            .frame(width: 12, height: 12)
-                            .rotationEffect(.degrees(45))
-                            .accessibilityLabel("Incorrect")
+            // Result dots
+            let columns = Array(repeating: GridItem(.fixed(44), spacing: 0), count: 10)
+            LazyVGrid(columns: columns, spacing: 0) {
+                ForEach(Array(results.enumerated()), id: \.offset) { index, r in
+                    ZStack {
+                        if r.correct {
+                            Circle()
+                                .fill(RokaColor.correct)
+                                .frame(width: 14, height: 14)
+                        } else {
+                            Rectangle()
+                                .fill(RokaColor.wrong)
+                                .frame(width: 11, height: 11)
+                                .rotationEffect(.degrees(45))
+                        }
                     }
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .accessibilityLabel(r.correct
+                        ? "Word \(index + 1): correct"
+                        : "Word \(index + 1): incorrect")
+                    .accessibilityAddTraits(.isImage)
                 }
             }
-            .frame(maxWidth: 220)
+            .frame(maxWidth: 440)
             .padding(.bottom, 14)
 
             Text(message)
-                .font(RokaFont.regularScaled(.body, base: 16))
-                .foregroundColor(RokaColor.inkSubtle)
+                .font(.custom("AmericanTypewriter", size: 16, relativeTo: .body))
+                .foregroundColor(RokaColor.inkLight)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
                 .padding(.bottom, 32)

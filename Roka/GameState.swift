@@ -1,33 +1,6 @@
 import Foundation
 import Combine
 
-// MARK: - Level definition
-
-enum GameLevel: Int, CaseIterable, Identifiable {
-    case one   = 1
-    case two   = 2
-    case three = 3
-
-    var id: Int { rawValue }
-
-    var title: String { "LEVEL \(rawValue)" }
-
-    /// Which categories are shown as answer buttons for this level
-    var availableCategories: [WordCategory] {
-        switch self {
-        case .one:   return [.real, .notReal]
-        case .two:   return [.real, .notReal, .abstract, .physical]
-        case .three: return [.real, .notReal, .abstract, .physical]
-        }
-    }
-
-    /// Level 3 uses a timed mode
-    var isTimed: Bool { self == .three }
-    var timePerCard: Double { 5.0 }
-}
-
-// MARK: - Supporting types
-
 struct RoundResult {
     let word: String
     let correct: Bool
@@ -39,54 +12,76 @@ enum GamePhase {
     case finished
 }
 
-// MARK: - GameState
+enum GameLevel: Int, CaseIterable, Identifiable {
+    case one = 1, two = 2, three = 3
+    var id: Int { rawValue }
+    var title: String { "LEVEL \(rawValue)" }
+    var usesMultiSelect: Bool { self != .one }
+    var isTimed: Bool { self == .three }
+    var timePerCard: Double { 6.0 }
+    var availableCategories: [WordCategory] {
+        self == .one ? [.real, .notReal] : [.real, .notReal, .abstract, .physical]
+    }
+}
 
 class GameState: ObservableObject {
     static let deckSize = 15
 
     @Published var level: GameLevel = .one
-    @Published var deck: [Word]     = []
+    @Published var deck: [Word] = []
     @Published var currentIndex: Int = 0
     @Published var results: [RoundResult] = []
     @Published var phase: GamePhase = .playing
     @Published var lastFeedback: (text: String, correct: Bool)? = nil
-    @Published var flashCategory: WordCategory? = nil
 
-    // Level 3: timer
-    @Published var timeRemaining: Double = 5.0
-    private var timerTask: Task<Void, Never>? = nil
+    // Multi-select state (L2/L3)
+    @Published var selectedCategories: Set<WordCategory> = []
+
+    // Flash: which categories to highlight after confirm
+    @Published var flashCorrect: Set<WordCategory> = []
+    @Published var flashWrong: Set<WordCategory> = []   // selected but wrong, or correct but missed
+    @Published var shakingCategories: Set<WordCategory> = []
+
+    // Timer (L3)
+    @Published var timeRemaining: Double = 6.0
+    private var timerTask: Task<Void, Never>?
 
     var currentWord: Word? {
         guard currentIndex < deck.count else { return nil }
         return deck[currentIndex]
     }
-    var score: Int   { results.filter(\.correct).count }
     var progress: String { "\(currentIndex + 1) / \(deck.count)" }
 
+    // MARK: - Start
+
     func startGame(level: GameLevel) {
-        self.level     = level
-        deck           = Array(allWords.shuffled().prefix(GameState.deckSize))
-        currentIndex   = 0
-        results        = []
-        phase          = .playing
-        lastFeedback   = nil
-        flashCategory  = nil
+        self.level = level
+        deck = Array(allWords.shuffled().prefix(GameState.deckSize))
+        currentIndex = 0
+        results = []
+        phase = .playing
+        lastFeedback = nil
+        selectedCategories = []
+        flashCorrect = []
+        flashWrong = []
+        shakingCategories = []
         if level.isTimed { startTimer() }
     }
 
-    func guess(_ category: WordCategory) {
+    // MARK: - Level 1: single tap
+
+    func guessSingle(_ category: WordCategory) {
         guard phase == .playing, let word = currentWord else { return }
         timerTask?.cancel()
 
         let correct = word.accepts(category)
         results.append(RoundResult(word: word.text, correct: correct))
-        flashCategory = category
 
         if correct {
-            if word.categories.contains(.physical)  { lastFeedback = (text: "✓ \(word.text) is real & physical.", correct: true) }
-            else if word.categories.contains(.abstract) { lastFeedback = (text: "✓ \(word.text) is real & abstract.", correct: true) }
-            else { lastFeedback = (text: "✓ Correct!", correct: true) }
+            flashCorrect = [category]
+            lastFeedback = feedbackText(word: word, correct: true)
         } else {
+            flashWrong = [category]
             lastFeedback = (text: "✗ Not quite!", correct: false)
         }
 
@@ -96,9 +91,70 @@ class GameState: ObservableObject {
         }
     }
 
+    // MARK: - Level 2/3: toggle + confirm
+
+    func toggleCategory(_ category: WordCategory) {
+        guard phase == .playing else { return }
+        if selectedCategories.contains(category) {
+            selectedCategories.remove(category)
+        } else {
+            selectedCategories.insert(category)
+        }
+    }
+
+    func confirmSelection() {
+        guard phase == .playing, let word = currentWord else { return }
+        guard !selectedCategories.isEmpty else { return }
+        timerTask?.cancel()
+
+        let required = Set(word.categories)
+        let correct = selectedCategories == required
+
+        results.append(RoundResult(word: word.text, correct: correct))
+
+        if correct {
+            flashCorrect = selectedCategories
+            lastFeedback = feedbackText(word: word, correct: true)
+            phase = .transitioning
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+                self?.advance()
+            }
+        } else {
+            // Highlight which were wrong selected (red) and which were correct but missed (also red)
+            let wrongSelected = selectedCategories.subtracting(required)
+            let missed = required.subtracting(selectedCategories)
+            flashWrong = wrongSelected.union(missed)
+            shakingCategories = flashWrong
+            lastFeedback = (text: "✗ Not quite!", correct: false)
+            phase = .transitioning
+
+            // Clear shake flag after animation completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+                self?.shakingCategories = []
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) { [weak self] in
+                self?.advance()
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func feedbackText(word: Word, correct: Bool) -> (text: String, correct: Bool) {
+        if word.categories.contains(.physical) && word.categories.contains(.real) {
+            return (text: "✓ \(word.text) is real & physical.", correct: true)
+        } else if word.categories.contains(.abstract) && word.categories.contains(.real) {
+            return (text: "✓ \(word.text) is real & abstract.", correct: true)
+        }
+        return (text: "✓ Correct!", correct: true)
+    }
+
     private func advance() {
-        flashCategory = nil
-        lastFeedback  = nil
+        selectedCategories = []
+        flashCorrect = []
+        flashWrong = []
+        shakingCategories = []
+        lastFeedback = nil
         currentIndex += 1
         if currentIndex >= deck.count {
             phase = .finished
@@ -108,17 +164,17 @@ class GameState: ObservableObject {
         }
     }
 
-    // MARK: Timer (Level 3)
+    // MARK: - Timer
 
     private func startTimer() {
         timeRemaining = level.timePerCard
         timerTask?.cancel()
         timerTask = Task { @MainActor in
-            let interval = 0.05
+            let tick = 0.05
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: UInt64(tick * 1_000_000_000))
                 guard !Task.isCancelled else { break }
-                timeRemaining -= interval
+                timeRemaining -= tick
                 if timeRemaining <= 0 {
                     timeRemaining = 0
                     timeExpired()
@@ -130,14 +186,21 @@ class GameState: ObservableObject {
 
     private func timeExpired() {
         guard phase == .playing else { return }
-        // Count as wrong — no category tapped
         if let word = currentWord {
-            results.append(RoundResult(word: word.text, correct: false))
+            let required = Set(word.categories)
+            let missed = required.subtracting(selectedCategories)
+            let wrongSelected = selectedCategories.subtracting(required)
+            flashWrong = missed.union(wrongSelected)
+            shakingCategories = flashWrong
         }
+        results.append(RoundResult(word: currentWord?.text ?? "", correct: false))
         RokaHaptic.wrong()
         lastFeedback = (text: "✗ Time's up!", correct: false)
         phase = .transitioning
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            self?.shakingCategories = []
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
             self?.advance()
         }
     }
