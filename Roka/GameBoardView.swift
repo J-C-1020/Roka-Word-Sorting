@@ -6,6 +6,8 @@ struct GameBoardView: View {
     let onHome: () -> Void
     let onRestart: () -> Void
     let onLevels: () -> Void
+    
+    @State private var showIntro = true
 
     // Flash state per category
     private func flashFor(_ cat: WordCategory) -> RokaCategoryFlash {
@@ -20,12 +22,15 @@ struct GameBoardView: View {
                 EndView(
                     results: gameState.results,
                     levelTitle: level.title,
-                    onRestart: onRestart,
+                    onRestart: {
+                        showIntro = true
+                        onRestart()
+                    },
                     onHome: onHome,
                     onLevels: onLevels
                 )
                 .transition(.opacity)
-            } else {
+            } else if gameState.phase != .waiting {
                 GeometryReader { geo in
                     let w = geo.size.width
                     let h = geo.size.height
@@ -127,9 +132,23 @@ struct GameBoardView: View {
                         .animation(.easeInOut(duration: 0.15), value: gameState.lastFeedback?.text)
                     }
                     .frame(width: w, height: h)
-                    // Block input during transitioning phase
                     .allowsHitTesting(gameState.phase == .playing)
                 }
+            }
+            
+            if showIntro {
+                LevelIntroOverlay()
+                    .transition(.opacity)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                            withAnimation(.easeInOut(duration: 0.55)) {
+                                showIntro = false
+                            }
+                            
+                        gameState.beginPlaying()
+                            
+                        }
+                    }
             }
         }
         .animation(.easeInOut(duration: 0.25), value: gameState.phase == .finished)
@@ -139,3 +158,20 @@ struct GameBoardView: View {
         }
     }
 }
+
+private struct LevelIntroOverlay: View {
+    
+    var body: some View {
+        ZStack {
+            // Same paper background — seamless, no jarring colour shift
+            PaperBackground().ignoresSafeArea()
+            
+            Text("Select all categories\nthat apply")
+                .font(.custom("AmericanTypewriter-Bold", size: 28, relativeTo: .title2))
+                .tracking(1)
+                .multilineTextAlignment(.center)
+                .foregroundColor(RokaColor.ink)
+        }
+    }
+}
+

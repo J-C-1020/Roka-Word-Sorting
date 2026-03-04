@@ -8,6 +8,7 @@ struct RoundResult {
 
 enum GamePhase {
     case playing
+    case waiting
     case transitioning
     case finished
 }
@@ -59,13 +60,18 @@ class GameState: ObservableObject {
         deck = Array(allWords.shuffled().prefix(GameState.deckSize))
         currentIndex = 0
         results = []
-        phase = .playing
+        phase = .waiting
         lastFeedback = nil
         selectedCategories = []
         flashCorrect = []
         flashWrong = []
         shakingCategories = []
         if level.isTimed { startTimer() }
+    }
+    
+    func beginPlaying() {
+        guard phase == .waiting else { return }
+        phase = .playing
     }
 
     // MARK: - Level 1: single tap

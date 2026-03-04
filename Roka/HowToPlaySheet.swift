@@ -18,53 +18,56 @@ struct HowToPlaySheet: View {
                     withAnimation(.easeOut(duration: 0.22)) { isPresented = false }
                 }
 
-            VStack(alignment: .leading, spacing: 0) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
 
-                // Header
-                HStack {
-                    Text("How to Play")
-                        .font(.custom("AmericanTypewriter-Bold", size: 22, relativeTo: .title3))
-                        .foregroundColor(RokaColor.ink.opacity(0.82))
+                    // Header
+                    HStack(alignment: .center) {
+                        Text("How to Play")
+                            .font(.custom("AmericanTypewriter-Bold", size: 22, relativeTo: .title3))
+                            .foregroundColor(RokaColor.ink.opacity(0.82))
 
-                    Spacer()
+                        Spacer()
 
-                    Button {
-                        withAnimation(.easeOut(duration: 0.22)) { isPresented = false }
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(RokaColor.ink.opacity(0.45))
-                            .frame(width: 44, height: 44)   // already meets HIG minimum
-                            .background(Color.black.opacity(0.05))
-                            .clipShape(Circle())
+                        Button {
+                            withAnimation(.easeOut(duration: 0.22)) { isPresented = false }
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(RokaColor.ink.opacity(0.45))
+                                .frame(width: 44, height: 44)
+                                .background(Color.black.opacity(0.05))
+                                .clipShape(Circle())
+                        }
+                        .accessibilityLabel("Close")
                     }
-                    .accessibilityLabel("Close")
-                }
-                .padding(.bottom, 24)
+                    .padding(.bottom, 24)
 
-                // Rules
-                VStack(alignment: .leading, spacing: 18) {
-                    ForEach(rules, id: \.tag) { rule in
-                        RuleRow(tag: rule.tag, text: rule.text)
+                    // Rules
+                    VStack(alignment: .leading, spacing: 18) {
+                        ForEach(rules, id: \.tag) { rule in
+                            RuleRow(tag: rule.tag, text: rule.text)
+                        }
                     }
+
+                    Rectangle()
+                        .fill(RokaColor.ink.opacity(0.1))
+                        .frame(height: 1)
+                        .padding(.vertical, 20)
+
+                    Text("A word can belong to more than one category. Choose all the applying categories to get a right answer.")
+                        .font(.custom("AmericanTypewriter", size: 14, relativeTo: .subheadline))
+                        .foregroundColor(RokaColor.ink.opacity(0.48))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .italic()
                 }
-
-                Rectangle()
-                    .fill(RokaColor.ink.opacity(0.1))
-                    .frame(height: 1)
-                    .padding(.vertical, 20)
-
-                Text("A word can belong to more than one category. Any correct label counts as a right answer.")
-                    .font(.custom("AmericanTypewriter", size: 14, relativeTo: .subheadline))
-                    .foregroundColor(RokaColor.ink.opacity(0.48))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .italic()
+                .padding(32)
             }
-            .padding(32)
             .background(
                 ZStack {
                     Color(red: 0.96, green: 0.94, blue: 0.91)
+
                     GeometryReader { geo in
                         let spacing: CGFloat = 28
                         let count = Int(geo.size.height / spacing) + 2
@@ -75,6 +78,7 @@ struct HowToPlaySheet: View {
                                 .offset(y: CGFloat(i) * spacing)
                         }
                     }
+
                     HStack {
                         Rectangle()
                             .fill(RokaColor.marginLine)
@@ -111,13 +115,15 @@ struct RuleRow: View {
                         .stroke(RokaColor.tan, lineWidth: 1.5)
                 )
                 .cornerRadius(3)
-                .fixedSize()
+                // Remove fixedSize() — let the tag wrap or grow with Dynamic Type
+                .layoutPriority(1)
 
             Text(text)
                 .font(.custom("AmericanTypewriter", size: 15, relativeTo: .subheadline))
                 .foregroundColor(RokaColor.ink.opacity(0.72))
                 .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
+                // Remove fixedSize — ScrollView parent now handles vertical growth
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
