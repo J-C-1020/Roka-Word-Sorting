@@ -36,10 +36,12 @@ struct PlayingCardView: View {
                     .stroke(Color(white: 0.86), lineWidth: 1.5)
 
                 Text(word)
-                    .font(.custom("AmericanTypewriter-Bold", size: 28))
+                    .font(.custom("AmericanTypewriter-Bold", size: 28, relativeTo: .title))
                     .tracking(1)
                     .foregroundColor(Color(red: 0.16, green: 0.12, blue: 0.08))
                     .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(2)
                     .padding(.horizontal, 16)
             }
             .frame(width: 220, height: 145)
@@ -50,7 +52,6 @@ struct PlayingCardView: View {
         }
         .frame(width: 240, height: 165)
         .onChange(of: word) {
-            // Entrance animation when word changes
             cardOpacity = 0
             cardOffset = -20
             cardScale = 0.75
@@ -77,7 +78,6 @@ struct PlayingCardView: View {
     }
 }
 
-// Small preview card for intro screen
 struct PreviewCardView: View {
     let word: String
     let rotation: Double
@@ -95,16 +95,15 @@ struct PreviewCardView: View {
                 .stroke(Color(white: 0.87), lineWidth: 1.5)
 
             Text(word)
-                .font(.custom("AmericanTypewriter-Bold", size: 18))
+                .font(.custom("AmericanTypewriter-Bold", size: 18, relativeTo: .title3))
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
                 .foregroundColor(Color(red: 0.16, green: 0.12, blue: 0.08))
+                .padding(.horizontal, 10)
         }
         .frame(width: 160, height: 100)
         .rotationEffect(.degrees(rotation))
         .offset(x: offsetX, y: offsetY)
         .zIndex(zIndex)
     }
-}
-
-#Preview{
-    PlayingCardView(word: "COFFEE", isVisible: true)
 }

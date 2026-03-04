@@ -2,7 +2,7 @@ import SwiftUI
 
 struct IntroView: View {
     let onStart: () -> Void
-    let onHowToPlay: () -> Void   // kept for external use; sheet handled internally
+    let onHowToPlay: () -> Void
 
     @State private var showHowToPlay = false
     @State private var appeared = false
@@ -29,18 +29,21 @@ struct IntroView: View {
                 // Right — title + buttons
                 VStack(spacing: 0) {
                     Spacer()
+
                     Text("Roka")
-                        .font(RokaFont.boldScaled(.largeTitle, base: 52))
+                        .font(.custom("AmericanTypewriter-Bold", size: 52, relativeTo: .largeTitle))
                         .tracking(12)
                         .foregroundColor(RokaColor.ink.opacity(0.82))
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
                         .opacity(appeared ? 1 : 0)
                         .offset(y: appeared ? 0 : -10)
                         .animation(.easeOut(duration: 0.38), value: appeared)
 
                     Text("The word sorting game")
-                        .font(RokaFont.regularScaled(.caption, base: 13))
+                        .font(.custom("AmericanTypewriter", size: 13, relativeTo: .caption))
                         .tracking(2)
-                        .foregroundColor(RokaColor.inkFaint)
+                        .foregroundColor(RokaColor.inkLight)
                         .padding(.top, 5)
                         .padding(.bottom, 28)
                         .opacity(appeared ? 1 : 0)
