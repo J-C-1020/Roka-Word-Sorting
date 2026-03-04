@@ -34,6 +34,32 @@ enum RokaFont {
     }
 }
 
+
+// MARK: - Dynamic Type layout helpers
+
+extension DynamicTypeSize {
+    /// Maximum width for a primary button column — grows with type size
+    var buttonMaxWidth: CGFloat {
+        switch self {
+        case .xSmall, .small, .medium:          return 200
+        case .large:                            return 220
+        case .xLarge:                           return 260
+        case .xxLarge:                          return 300
+        case .xxxLarge:                         return 340
+        case .accessibility1:                   return 380
+        case .accessibility2, .accessibility3,
+             .accessibility4, .accessibility5:  return .infinity
+        @unknown default:                       return 220
+        }
+    }
+
+    /// Horizontal padding — loosens at accessibility sizes
+    var horizontalPadding: CGFloat {
+        isAccessibilitySize ? 28 : 36
+    }
+}
+
+
 // MARK: - Haptics
 
 enum RokaHaptic {

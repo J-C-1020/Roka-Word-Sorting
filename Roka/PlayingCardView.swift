@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - PlayingCardView (in-game card)
+
 struct PlayingCardView: View {
     let word: String
     let isVisible: Bool
@@ -11,13 +13,14 @@ struct PlayingCardView: View {
 
     var body: some View {
         ZStack {
-            // Back cards (stack effect)
+            // Back cards — decorative stack effect, no content
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(red: 0.96, green: 0.94, blue: 0.91))
                 .frame(width: 220, height: 145)
                 .shadow(color: .black.opacity(0.1), radius: 3, x: 1, y: 2)
                 .rotationEffect(.degrees(-4))
                 .offset(x: -3, y: 5)
+                .accessibilityHidden(true)
 
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(red: 0.96, green: 0.94, blue: 0.91))
@@ -25,8 +28,9 @@ struct PlayingCardView: View {
                 .shadow(color: .black.opacity(0.1), radius: 3, x: 1, y: 2)
                 .rotationEffect(.degrees(2.5))
                 .offset(x: 3, y: 3)
+                .accessibilityHidden(true)
 
-            // Front card
+            // Front card — the only meaningful element
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.white)
@@ -78,6 +82,8 @@ struct PlayingCardView: View {
     }
 }
 
+// MARK: - PreviewCardView (intro screen decorative stack)
+
 struct PreviewCardView: View {
     let word: String
     let rotation: Double
@@ -96,14 +102,22 @@ struct PreviewCardView: View {
 
             Text(word)
                 .font(.custom("AmericanTypewriter-Bold", size: 18, relativeTo: .title3))
+                .foregroundColor(Color(red: 0.16, green: 0.12, blue: 0.08))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
-                .foregroundColor(Color(red: 0.16, green: 0.12, blue: 0.08))
                 .padding(.horizontal, 10)
         }
         .frame(width: 160, height: 100)
         .rotationEffect(.degrees(rotation))
         .offset(x: offsetX, y: offsetY)
         .zIndex(zIndex)
+        // Each preview card is purely decorative — hidden from VoiceOver entirely.
+        // The IntroView wraps the whole ZStack in a single accessibility element
+        // that describes the stack as a group.
+        .accessibilityHidden(true)
     }
+}
+
+#Preview {
+    PlayingCardView(word: "COFFEE", isVisible: true)
 }
