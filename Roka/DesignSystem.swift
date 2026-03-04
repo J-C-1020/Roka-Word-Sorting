@@ -186,35 +186,39 @@ struct RokaLevelButton: View {
     }
 }
 
-// MARK: - Category Answer Button (toggleable for L2/L3, single-tap for L1)
-
-enum RokaCategoryFlash { case none, correct, wrong }
-
 struct RokaCategoryButton: View {
     let title: String
-    let isSelected: Bool          // only used in L2/L3
+    let isSelected: Bool
     let flashState: RokaCategoryFlash
     let isShaking: Bool
     let action: () -> Void
 
-    @State private var shakeValue: CGFloat = 0
-    @State private var isPressed = false
+    @ScaledMetric(relativeTo: .caption) private var rawLabelSize: CGFloat = 13
+    private var labelSize: CGFloat { min(rawLabelSize, 16) }
 
-    private var bg: Color {
+    @State private var isPressed = false
+    @State private var shakeValue: CGFloat = 0
+
+    private var backgroundColor: Color {
         switch flashState {
-        case .none:    return isSelected ? RokaColor.selectedLight : RokaColor.tanLight
-        case .correct: return RokaColor.correctLight
-        case .wrong:   return RokaColor.wrongLight
+        case .none:    return isSelected
+                           ? Color(red: 0.78, green: 0.88, blue: 0.97)
+                           : Color(red: 0.83, green: 0.65, blue: 0.45)
+        case .correct: return Color(red: 0.72, green: 0.87, blue: 0.73)
+        case .wrong:   return Color(red: 0.96, green: 0.77, blue: 0.77)
         }
     }
-    private var border: Color {
+
+    private var borderColor: Color {
         switch flashState {
-        case .none:    return isSelected ? RokaColor.selected : RokaColor.tan
-        case .correct: return RokaColor.correct
-        case .wrong:   return RokaColor.wrong
+        case .none:    return isSelected
+                           ? Color(red: 0.20, green: 0.38, blue: 0.65)
+                           : Color(red: 0.63, green: 0.44, blue: 0.29)
+        case .correct: return Color(red: 0.23, green: 0.49, blue: 0.27)
+        case .wrong:   return Color(red: 0.75, green: 0.22, blue: 0.17)
         }
     }
-    // Symbol prefix — differentiate without color
+
     private var prefix: String {
         switch flashState {
         case .none:    return isSelected ? "● " : ""
@@ -226,22 +230,29 @@ struct RokaCategoryButton: View {
     var body: some View {
         Button(action: action) {
             Text(prefix + title)
-                .font(RokaFont.boldScaled(.caption, base: 13))
+                .font(.custom("AmericanTypewriter-Bold", size: labelSize))
                 .tracking(1)
-                .foregroundColor(RokaColor.ink)
+                .foregroundColor(Color(red: 0.16, green: 0.12, blue: 0.08))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false) // never truncate — size to content
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .frame(minWidth: 90)
-                .background(bg)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(border, lineWidth: 2))
+                .frame(minHeight: 44)  // HIG touch target height only, not width
+                .background(backgroundColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(borderColor, lineWidth: 2)
+                )
                 .cornerRadius(6)
                 .shadow(color: .black.opacity(0.15), radius: 4, x: 2, y: 3)
-                .scaleEffect(flashState == .correct ? 1.08 : (isSelected ? 1.04 : (isPressed ? 0.95 : 1.0)))
+                .scaleEffect(flashState == .correct ? 1.08
+                             : (isSelected ? 1.04
+                             : (isPressed  ? 0.95 : 1.0)))
         }
         .buttonStyle(PlainButtonStyle())
-        .modifier(ShakeEffect(animatableData: shakeValue))
-        .animation(.spring(response: 0.22, dampingFraction: 0.6), value: isSelected)
+        .modifier(RokaShakeEffect(animatableData: shakeValue))
         .animation(.spring(response: 0.22, dampingFraction: 0.6), value: flashState)
+        .animation(.spring(response: 0.22, dampingFraction: 0.6), value: isSelected)
         .animation(.easeOut(duration: 0.1), value: isPressed)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
@@ -256,19 +267,38 @@ struct RokaCategoryButton: View {
     }
 }
 
+struct RokaShakeEffect: GeometryEffect {
+    var amount: CGFloat = 8
+    var shakesPerUnit: CGFloat = 3
+    var animatableData: CGFloat
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let t = amount * sin(animatableData * .pi * shakesPerUnit)
+        return ProjectionTransform(CGAffineTransform(translationX: t, y: 0))
+    }
+}
+
+enum RokaCategoryFlash { case none, correct, wrong }
+
 // MARK: - Confirm Button
 
 struct RokaConfirmButton: View {
     let action: () -> Void
 
+    @ScaledMetric(relativeTo: .caption) private var rawSize: CGFloat = 13
+    private var labelSize: CGFloat { min(rawSize, 16) }
+
     var body: some View {
         Button(action: action) {
             Text("CONFIRM")
-                .font(RokaFont.boldScaled(.caption, base: 13))
+                .font(.custom("AmericanTypewriter-Bold", size: labelSize))
                 .tracking(1)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundColor(RokaColor.paper)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 11)
+                .frame(minHeight: 44)
                 .background(RokaColor.ink)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
@@ -282,6 +312,7 @@ struct RokaConfirmButton: View {
         .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 }
+
 
 // MARK: - Feedback Icon
 
