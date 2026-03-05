@@ -8,9 +8,15 @@ struct GameBoardView: View {
     let onLevels: () -> Void
 
     @State private var showIntro = true
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @ScaledMetric(relativeTo: .title2)  private var levelTitleSize: CGFloat = 20
     @ScaledMetric(relativeTo: .caption) private var progressSize:   CGFloat = 13
+
+    /// Scroll only when Dynamic Type is large enough to risk overflow
+    private var needsScroll: Bool {
+        dynamicTypeSize >= .xLarge
+    }
 
     private func flashFor(_ cat: WordCategory) -> RokaCategoryFlash {
         if gameState.flashCorrect.contains(cat) { return .correct }
@@ -65,42 +71,9 @@ struct GameBoardView: View {
                         .padding(.bottom, 6)
                     }
 
-                    // ── Scrollable centre ────────────────────────────────────
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 8) {
-                            Text(gameState.progress)
-                                .font(.custom("AmericanTypewriter",
-                                              size: min(progressSize, 14)))
-                                .foregroundColor(RokaColor.inkLight)
-                                .tracking(1)
-
-                            if let word = gameState.currentWord {
-                                PlayingCardView(word: word.text, isVisible: true)
-                                    .id(gameState.currentIndex)
-                            }
-
-                            if level.isTimed {
-                                TimerBarView(
-                                    progress: gameState.timeRemaining / level.timePerCard
-                                )
-                                .frame(width: 180, height: 6)
-                                .padding(.top, 2)
-                            }
-
-                            ZStack {
-                                if let fb = gameState.lastFeedback {
-                                    RokaFeedbackIcon(isCorrect: fb.correct)
-                                } else {
-                                    Color.clear.frame(width: 28, height: 28)
-                                }
-                            }
-                            .frame(height: 32)
-                            .animation(.easeInOut(duration: 0.15),
-                                       value: gameState.lastFeedback?.text)
-                        }
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                    }
+                    // ── Centre: plain VStack or ScrollView by Dynamic Type ───
+                    centerContent
+                        .allowsHitTesting(gameState.phase == .playing)
 
                     // ── Bottom row: REAL / CONFIRM / NOT REAL ────────────────
                     HStack(alignment: .center) {
@@ -129,7 +102,6 @@ struct GameBoardView: View {
                     .animation(.spring(response: 0.3, dampingFraction: 0.65),
                                value: gameState.selectedCategories.isEmpty)
                 }
-                .allowsHitTesting(gameState.phase == .playing)
                 .transition(.opacity)
             }
 
@@ -155,7 +127,59 @@ struct GameBoardView: View {
         }
     }
 
-    // ── Extracted so the HStack rows stay readable ───────────────────────────
+    // ── Centre content ───────────────────────────────────────────────────────
+    /// Extracted so the ScrollView/VStack swap stays in one place.
+    @ViewBuilder
+    private var centerContent: some View {
+        let inner = centreStack
+        if needsScroll {
+            ScrollView(.vertical, showsIndicators: false) {
+                inner
+            }
+        } else {
+            inner
+                .frame(maxHeight: .infinity)
+        }
+    }
+
+    /// The actual progress + card + timer + feedback stack.
+    private var centreStack: some View {
+        VStack(spacing: 8) {
+            Text(gameState.progress)
+                .font(.custom("AmericanTypewriter",
+                              size: min(progressSize, 14)))
+                .foregroundColor(RokaColor.inkLight)
+                .tracking(1)
+
+            if let word = gameState.currentWord {
+                PlayingCardView(word: word.text, isVisible: true)
+                    .id(gameState.currentIndex)
+            }
+
+            if level.isTimed {
+                TimerBarView(
+                    progress: gameState.timeRemaining / level.timePerCard
+                )
+                .frame(width: 180, height: 6)
+                .padding(.top, 2)
+            }
+
+            ZStack {
+                if let fb = gameState.lastFeedback {
+                    RokaFeedbackIcon(isCorrect: fb.correct)
+                } else {
+                    Color.clear.frame(width: 28, height: 28)
+                }
+            }
+            .frame(height: 32)
+            .animation(.easeInOut(duration: 0.15),
+                       value: gameState.lastFeedback?.text)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+    }
+
+    // ── Extracted category button builder ────────────────────────────────────
     @ViewBuilder
     private func categoryButton(
         for cat: WordCategory,
